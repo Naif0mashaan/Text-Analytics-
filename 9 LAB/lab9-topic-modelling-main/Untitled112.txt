@@ -1,0 +1,710 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 73
+        },
+        "id": "g0ApBNyyLH_r",
+        "outputId": "356bb320-2296-4b8b-f0a1-fdfb5b430c5f"
+      },
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.HTML object>"
+            ],
+            "text/html": [
+              "\n",
+              "     <input type=\"file\" id=\"files-cf9ea74e-1b82-4cf6-86d7-e93e705fdfaa\" name=\"files[]\" multiple disabled\n",
+              "        style=\"border:none\" />\n",
+              "     <output id=\"result-cf9ea74e-1b82-4cf6-86d7-e93e705fdfaa\">\n",
+              "      Upload widget is only available when the cell has been executed in the\n",
+              "      current browser session. Please rerun this cell to enable.\n",
+              "      </output>\n",
+              "      <script>// Copyright 2017 Google LLC\n",
+              "//\n",
+              "// Licensed under the Apache License, Version 2.0 (the \"License\");\n",
+              "// you may not use this file except in compliance with the License.\n",
+              "// You may obtain a copy of the License at\n",
+              "//\n",
+              "//      http://www.apache.org/licenses/LICENSE-2.0\n",
+              "//\n",
+              "// Unless required by applicable law or agreed to in writing, software\n",
+              "// distributed under the License is distributed on an \"AS IS\" BASIS,\n",
+              "// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n",
+              "// See the License for the specific language governing permissions and\n",
+              "// limitations under the License.\n",
+              "\n",
+              "/**\n",
+              " * @fileoverview Helpers for google.colab Python module.\n",
+              " */\n",
+              "(function(scope) {\n",
+              "function span(text, styleAttributes = {}) {\n",
+              "  const element = document.createElement('span');\n",
+              "  element.textContent = text;\n",
+              "  for (const key of Object.keys(styleAttributes)) {\n",
+              "    element.style[key] = styleAttributes[key];\n",
+              "  }\n",
+              "  return element;\n",
+              "}\n",
+              "\n",
+              "// Max number of bytes which will be uploaded at a time.\n",
+              "const MAX_PAYLOAD_SIZE = 100 * 1024;\n",
+              "\n",
+              "function _uploadFiles(inputId, outputId) {\n",
+              "  const steps = uploadFilesStep(inputId, outputId);\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  // Cache steps on the outputElement to make it available for the next call\n",
+              "  // to uploadFilesContinue from Python.\n",
+              "  outputElement.steps = steps;\n",
+              "\n",
+              "  return _uploadFilesContinue(outputId);\n",
+              "}\n",
+              "\n",
+              "// This is roughly an async generator (not supported in the browser yet),\n",
+              "// where there are multiple asynchronous steps and the Python side is going\n",
+              "// to poll for completion of each step.\n",
+              "// This uses a Promise to block the python side on completion of each step,\n",
+              "// then passes the result of the previous step as the input to the next step.\n",
+              "function _uploadFilesContinue(outputId) {\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  const steps = outputElement.steps;\n",
+              "\n",
+              "  const next = steps.next(outputElement.lastPromiseValue);\n",
+              "  return Promise.resolve(next.value.promise).then((value) => {\n",
+              "    // Cache the last promise value to make it available to the next\n",
+              "    // step of the generator.\n",
+              "    outputElement.lastPromiseValue = value;\n",
+              "    return next.value.response;\n",
+              "  });\n",
+              "}\n",
+              "\n",
+              "/**\n",
+              " * Generator function which is called between each async step of the upload\n",
+              " * process.\n",
+              " * @param {string} inputId Element ID of the input file picker element.\n",
+              " * @param {string} outputId Element ID of the output display.\n",
+              " * @return {!Iterable<!Object>} Iterable of next steps.\n",
+              " */\n",
+              "function* uploadFilesStep(inputId, outputId) {\n",
+              "  const inputElement = document.getElementById(inputId);\n",
+              "  inputElement.disabled = false;\n",
+              "\n",
+              "  const outputElement = document.getElementById(outputId);\n",
+              "  outputElement.innerHTML = '';\n",
+              "\n",
+              "  const pickedPromise = new Promise((resolve) => {\n",
+              "    inputElement.addEventListener('change', (e) => {\n",
+              "      resolve(e.target.files);\n",
+              "    });\n",
+              "  });\n",
+              "\n",
+              "  const cancel = document.createElement('button');\n",
+              "  inputElement.parentElement.appendChild(cancel);\n",
+              "  cancel.textContent = 'Cancel upload';\n",
+              "  const cancelPromise = new Promise((resolve) => {\n",
+              "    cancel.onclick = () => {\n",
+              "      resolve(null);\n",
+              "    };\n",
+              "  });\n",
+              "\n",
+              "  // Wait for the user to pick the files.\n",
+              "  const files = yield {\n",
+              "    promise: Promise.race([pickedPromise, cancelPromise]),\n",
+              "    response: {\n",
+              "      action: 'starting',\n",
+              "    }\n",
+              "  };\n",
+              "\n",
+              "  cancel.remove();\n",
+              "\n",
+              "  // Disable the input element since further picks are not allowed.\n",
+              "  inputElement.disabled = true;\n",
+              "\n",
+              "  if (!files) {\n",
+              "    return {\n",
+              "      response: {\n",
+              "        action: 'complete',\n",
+              "      }\n",
+              "    };\n",
+              "  }\n",
+              "\n",
+              "  for (const file of files) {\n",
+              "    const li = document.createElement('li');\n",
+              "    li.append(span(file.name, {fontWeight: 'bold'}));\n",
+              "    li.append(span(\n",
+              "        `(${file.type || 'n/a'}) - ${file.size} bytes, ` +\n",
+              "        `last modified: ${\n",
+              "            file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() :\n",
+              "                                    'n/a'} - `));\n",
+              "    const percent = span('0% done');\n",
+              "    li.appendChild(percent);\n",
+              "\n",
+              "    outputElement.appendChild(li);\n",
+              "\n",
+              "    const fileDataPromise = new Promise((resolve) => {\n",
+              "      const reader = new FileReader();\n",
+              "      reader.onload = (e) => {\n",
+              "        resolve(e.target.result);\n",
+              "      };\n",
+              "      reader.readAsArrayBuffer(file);\n",
+              "    });\n",
+              "    // Wait for the data to be ready.\n",
+              "    let fileData = yield {\n",
+              "      promise: fileDataPromise,\n",
+              "      response: {\n",
+              "        action: 'continue',\n",
+              "      }\n",
+              "    };\n",
+              "\n",
+              "    // Use a chunked sending to avoid message size limits. See b/62115660.\n",
+              "    let position = 0;\n",
+              "    do {\n",
+              "      const length = Math.min(fileData.byteLength - position, MAX_PAYLOAD_SIZE);\n",
+              "      const chunk = new Uint8Array(fileData, position, length);\n",
+              "      position += length;\n",
+              "\n",
+              "      const base64 = btoa(String.fromCharCode.apply(null, chunk));\n",
+              "      yield {\n",
+              "        response: {\n",
+              "          action: 'append',\n",
+              "          file: file.name,\n",
+              "          data: base64,\n",
+              "        },\n",
+              "      };\n",
+              "\n",
+              "      let percentDone = fileData.byteLength === 0 ?\n",
+              "          100 :\n",
+              "          Math.round((position / fileData.byteLength) * 100);\n",
+              "      percent.textContent = `${percentDone}% done`;\n",
+              "\n",
+              "    } while (position < fileData.byteLength);\n",
+              "  }\n",
+              "\n",
+              "  // All done.\n",
+              "  yield {\n",
+              "    response: {\n",
+              "      action: 'complete',\n",
+              "    }\n",
+              "  };\n",
+              "}\n",
+              "\n",
+              "scope.google = scope.google || {};\n",
+              "scope.google.colab = scope.google.colab || {};\n",
+              "scope.google.colab._files = {\n",
+              "  _uploadFiles,\n",
+              "  _uploadFilesContinue,\n",
+              "};\n",
+              "})(self);\n",
+              "</script> "
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Saving npr.csv to npr.csv\n"
+          ]
+        }
+      ],
+      "source": [
+        "from google.colab import files\n",
+        "uploaded = files.upload()\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n",
+        "\n",
+        "df = pd.read_csv('/content/npr.csv')\n",
+        "df.head()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 206
+        },
+        "id": "-2AiqzOKNNQd",
+        "outputId": "851ef20e-72f3-44e2-a72d-d7740f550c34"
+      },
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "                                             Article\n",
+              "0  In the Washington of 2016, even when the polic...\n",
+              "1    Donald Trump has used Twitter  —   his prefe...\n",
+              "2    Donald Trump is unabashedly praising Russian...\n",
+              "3  Updated at 2:50 p. m. ET, Russian President Vl...\n",
+              "4  From photography, illustration and video, to d..."
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-82e8ec10-dccf-4df6-ab1b-8ec4c5192a44\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Article</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>In the Washington of 2016, even when the polic...</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>Donald Trump has used Twitter  —   his prefe...</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>Donald Trump is unabashedly praising Russian...</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>Updated at 2:50 p. m. ET, Russian President Vl...</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>From photography, illustration and video, to d...</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-82e8ec10-dccf-4df6-ab1b-8ec4c5192a44')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-82e8ec10-dccf-4df6-ab1b-8ec4c5192a44 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-82e8ec10-dccf-4df6-ab1b-8ec4c5192a44');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 11992,\n  \"fields\": [\n    {\n      \"column\": \"Article\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 11991,\n        \"samples\": [\n          \"Last week, physicists at the National Institute for Standards and Technology reported they\\u2019d cooled an object to a million times colder than room temperature. It was a record for the   science of  . In this field, researchers inch ever closer to  \\u2014   but never reach  \\u2014   the state of absolute zero temperature. It\\u2019s a science that has some very cool (pun very much intended) applications including   gravity wave detectors for \\u201dhearing\\u201d distant black hole mergers. But moving beyond these applications, why is   so hard to begin with? Why can\\u2019t we just get to absolute zero degrees and be done with it? The answer to this question drops us straight into one of the quantum universe\\u2019s most startling features: The world never rests. To see what this means, let\\u2019s remind ourselves about the meaning of \\u201dtemperature.\\u201d Without getting too technical (we should really be talking about entropy here) temperature for physicists is a measure of random motion. Imagine the gas molecules in the air around you are little cue balls of matter. The higher the air temperature, the faster those little orbs of matter will be ricocheting around the room, bouncing off the walls and each other. So cooling the air means finding some means to slow the molecules down. From this perspective, there there\\u2019s no conceptual reason why you shouldn\\u2019t be able bring them entirely to a halt. Do that, and the air would have a temperature of \\u201dabsolute zero\\u201d degrees (as measured in units called Kelvins. In Fahrenheit, this would be  . 67 degrees). But, it turns out, nature doesn\\u2019t work that way. The universe doesn\\u2019t \\u201ddo\\u201d zero temperatures because it doesn\\u2019t do zero motion. Thinking about matter and motion in the way we described above is what we physicists call \\u201da classical picture.\\u201d In classical physics, matter is made of tiny particles of \\u201dstuff\\u201d and motion is just the change in the particles position with time. It all makes intuitive sense based on our experience of the world at the scale of baseballs and boulders. But a hundred years or so ago, physicists began probing the world on the scale of atoms. What they found was the classical, intuitive picture didn\\u2019t work well for explaining their experiments. In response, they developed a new kind of physics. In an astonishing burst of creativity, they kept key principles from the classical world  \\u2014   like the conservation of energy  \\u2014   but added new rules. One of these was the Uncertainty Principle, which essentially told us that reality is fuzzy at its root level. To be exact, certain pairs of properties  \\u2014   like motion and position  \\u2014   can never be known exactly. The Uncertainty Principle isn\\u2019t saying there\\u2019s something wrong with our instruments. Instead, it tells us there\\u2019s something wrong with our classical intuitions. In particular, when it comes to motion, it tells us it\\u2019s impossible to know the position and the motion of a particle exactly. The more you lock in the position of a particle, the wider the range of velocities the particle can have. So what does this have to do with temperature? Absolute zero should mean bringing particles to a halt. But that would imply you knew exactly where they were. You had them perfectly \\u201dlocalized.\\u201d If that\\u2019s the case, then the Uncertainty Principle demands there must be some uncertainty in their motion. They can\\u2019t be perfectly known to be perfectly at rest. The deeper meaning of this this quantum logic is that the universe can never be at rest. There is a \\u201dfloor\\u201d to how much things can be slowed down (or cooled). It\\u2019s impossible to go below that floor (though scientists do get ever more clever in skirting its edges). The implications of this can get pretty strange. Imagine we put a particle, like an electron, in a box. Now we ask: What\\u2019s the lowest energy state of the electron + box system? In classical physics, it would just be the electron sitting there unmoving  \\u2014   i. e. zero motion, hence zero energy. But quantum physics won\\u2019t allow such a thing as zero energy (because of the Uncertainty Principle). Instead, the system has   \\u201dground state\\u201d energy with the electron bouncing back and forth between the box walls. That\\u2019s as low as you can go. The electron can\\u2019t be stopped. Take this idea further, and you get to the delicious idea of vacuum energy. There the Uncertainty Principle demands that there can be no pure and perfect vacuum with a state of zero energy. Thus, in quantum physics, the vacuum is not empty but is a seething froth of \\u201dvirtual particles\\u201d that are never manifested and yet have a verifiable effect on the particles we do see. No vacuum. No zero energy. No zero temperature. No common sense expectation about the world\\u2019s behavior. The discovery that the quantum world was the foundation for our   classical experience was a triumph of science. It was a validation of science\\u2019s ability to take us beyond our limited senses and limited concepts. There is no way to \\u201dpicture\\u201d this quantum world with our classical imaginations. Instead, what we found was a new frontier. At its root, quantum physics showed us that this world we inhabit is dynamic to its very core: buzzing, roaring, shuddering and trembling like an infinite Jackson Pollack painting. It is not just richer than we imagined, but stranger and more wonderful than we can imagine. That view, hidden in the impossibility of absolute zero temperature, is a gift that science has given us all. Now what are we to make of it? Adam Frank is a   of the 13. 7 blog, an astrophysics professor at the University of Rochester, a book author and a   \\u201devangelist of science.\\u201d You can keep up with more of what Adam is thinking on Facebook and Twitter: @adamfrank4\",\n          \"President Trump hosted Russian Foreign Minister Sergey Lavrov at the White House on Wednesday, one day after firing the man whose agency is investigating Russia\\u2019s meddling in the 2016 election that brought Trump to power. Trump fired   FBI Director James Comey, who told Congress earlier this year that his agency has been investigating Russia\\u2019s actions  \\u2014   and possible ties to anyone associated with the Trump campaign  \\u2014   since July. As NPR\\u2019s Domenico Montanaro reports, the firing of Comey with more than six years left on his term in office has prompted a flurry of questions about the president\\u2019s motives  \\u2014   and about what\\u2019s next. Lavrov\\u2019s meeting with the president was scheduled for 10:30 a. m. ET, and it was declared closed to the press. Russian agencies tweeted photos from the Oval Office showing that in addition to Lavrov, Trump shook hands with Russia\\u2019s ambassador to America, Sergey Kislyak  \\u2014   a key figure in the investigation into Trump\\u2019s ousted national security adviser, Michael Flynn. After the Lavrov session had concluded, members of the U. S. media were allowed into the Oval Office, where they found the president sitting with Henry Kissinger, who served as President Richard Nixon\\u2019s secretary of state. The meeting hadn\\u2019t been listed on the president\\u2019s official schedule. Trump said he and Kissinger had met to talk \\u201dabout Russia and various other matters,\\u201d according to the pool report. To a question about Comey, Trump reportedly replied, \\u201dHe wasn\\u2019t doing a good job. Very simply. He was not doing a good job.\\u201d The president also said the issue had not affected his meeting with Lavrov. Lavrov arrived in Washington on Tuesday. He met with Secretary of State Rex Tillerson at the White House early Wednesday, ahead of his visit to the Oval Office. Tillerson and Lavrov made a brief appearance Wednesday morning for a   and as Tillerson began to lead his guest back behind closed doors, Lavrov responded to a question about Comey\\u2019s firing. When a reporter asked whether the dismissal has \\u201dcast a shadow\\u201d over their talks, Lavrov stopped and seemed to look genuinely quizzical when he responded, \\u201dWas he fired?\\u201d  \\u2014   but then adopted a deadpan tone as he told the reporter, \\u201dYou are kidding, you are kidding.\\u201d With a theatrical twitch of his head, the Russian diplomat then followed his American counterpart away from the media. The exchange was not included in the State Department\\u2019s brief video snippet from the   that it posted to Twitter. Tillerson\\u2019s office said his talks with Lavrov would focus on \\u201dUkraine, Syria, and bilateral issues.\\u201d But the Russians\\u2019 visit to the White House also came as the Kremlin made its first public comments on Comey\\u2019s removal. When Russian presidential spokesman Dmitry Peskov was asked how the firing might affect U. S.  relations, Peskov replied, \\u201dWe hope that it will not affect them at all. That\\u2019s the United States\\u2019 internal affair. That\\u2019s the U. S. president\\u2019s independent decision, which has nothing to do and should have nothing to do with Russia.\\u201d Comey\\u2019s dismissal has sparked new calls for an independent probe into Russia\\u2019s attempts to influence last year\\u2019s U. S. presidential election  \\u2014   despite the Trump administration\\u2019s assertion that Comey was removed over his handling of the investigation into Clinton\\u2019s private email server. \\u201dThis is nothing less than Nixonian,\\u201d said Patrick Leahy,  . a longtime member of the Senate Judiciary Committee. Announcing Comey\\u2019s abrupt firing Tuesday afternoon, White House press secretary Sean Spicer said the president \\u201dacted based on the clear recommendations of both Deputy Attorney General Rod Rosenstein and Attorney General Jeff Sessions.\\u201d\",\n          \"Republican presidential nominee Donald Trump has been calling for a criminal investigation of his political opponent Hillary Clinton on the campaign trail this year. Trump is angry the FBI probe of Clinton\\u2019s email server ended with no charges. Now, he says, an independent outsider needs to look at the Clinton Foundation. \\u201dThe Justice Department is required to appoint an independent special prosecutor because it has proven itself to be really, sadly, a political arm of the White House,\\u201d Trump said in Akron, Ohio, last week. Trump has offered no evidence to back up his claims that the Justice Department has been corrupted. But his call for a special prosecutor sounds familiar to people who study the intersection of law and politics. \\u201dIf you look at the chronology, pretty much the political party that does not control the White House tends to want special prosecutors and independent counsel laws,\\u201d said Ken Gormley, president of Duquesne University in Pittsburgh and the author of two books on special prosecutors. \\u201dAs soon as the party is in the White House, they don\\u2019t want it anymore.\\u201d In modern times, the idea first cropped up during the 1970s. President Richard Nixon notoriously fired a special prosecutor who was getting close to the tapes that would bring down his administration. Five months after what became known as the Saturday Night Massacre, Congress started work on an independent counsel law. The idea was to insulate sensitive criminal investigations from meddling by the White House. The law would stand for about 20 years. It didn\\u2019t produce many criminal convictions, but it did stir up a lot of trouble for presidents  \\u2014   and the people close to them. In 1996, Hillary Clinton became the first sitting first lady to testify before a grand jury. This one was investigating the Whitewater affair, an investigation that began with a real estate investment and morphed into scrutiny of President Bill Clinton\\u2019s sexual improprieties. Hillary Clinton was never charged with wrongdoing, but the investigation left a mark. Years later, Gormley interviewed Bill Clinton about it. \\u201dHe made clear that his decision to allow and endorse the appointment of an independent counsel in the Whitewater matter was one of the biggest mistakes of his presidency,\\u201d Gormley said. \\u201dIn fact, the words he used at one point is that it was like Wile E. Coyote and the Road Runner. And almost from the moment he was in the White House, there were political opponents using special prosecutors to bring him down, and they were off to the races.\\u201d By 1999, when Congress considered whether to renew the statute, opposition came from nearly all sides. Even Whitewater independent counsel Ken Starr told Congress the law had become a political weapon. \\u201dThe statutory mechanism intended to enhance confidence in law enforcement had the effect of weakening it,\\u201d Starr said, in arguing the law should not be reauthorized. \\u201dJurisdiction and authority over these sensitive matters ought to be returned to the Justice Department. And who will oversee them? The Congress, the press, the public.\\u201d That\\u2019s exactly what happened. The law expired. But the Justice Department can still use special prosecutors. They\\u2019re career lawyers, protected from political leaders at Justice by a firewall. During the George W. Bush years, special prosecutor Patrick Fitzgerald charged and convicted a top aide to the vice president. Justice Department leaders went on to deploy special prosecutors to investigate the firings of U. S. attorneys and the destruction of videotapes that showed torture of detainees. But authorities have relied on those prosecutors only sparingly, a position adopted by many, including Gormley. \\u201dI think I\\u2019ve come to the conclusion that we are better off when we have less of these investigations rather than more,\\u201d he said. \\u201dThey should be reserved for very special and extreme occasions.\\u201d Otherwise, Gormley argued, they could distract from what\\u2019s really important. \\u201dAs we as a country were just obsessed with the issue of Whitewater, Paula Jones, Monica Lewinsky and all of these distractions during the 1990s, there were people inside and outside the country literally plotting our attack,\\u201d he said. One of them, Gormley said, was Osama bin Laden.\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 2
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(df.shape)\n",
+        "print(df.columns)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "4aDZGHqWNS38",
+        "outputId": "b1ee655c-9180-4e7b-cf99-338438076de3"
+      },
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "(11992, 1)\n",
+            "Index(['Article'], dtype='object')\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import nltk\n",
+        "from nltk.corpus import stopwords\n",
+        "from nltk.tokenize import word_tokenize\n",
+        "from nltk.stem import WordNetLemmatizer\n",
+        "\n",
+        "nltk.download('stopwords')\n",
+        "nltk.download('punkt')\n",
+        "nltk.download('wordnet')\n",
+        "nltk.download('punkt_tab') # Added to fix the LookupError\n",
+        "\n",
+        "documents = df['Article'].astype(str).tolist()\n",
+        "\n",
+        "stop_words = set(stopwords.words('english'))\n",
+        "lemmatizer = WordNetLemmatizer()\n",
+        "\n",
+        "def preprocess_text(text):\n",
+        "    tokens = word_tokenize(text.lower())\n",
+        "    tokens = [token for token in tokens if token.isalnum()]\n",
+        "    tokens = [token for token in tokens if token not in stop_words]\n",
+        "    tokens = [lemmatizer.lemmatize(token) for token in tokens]\n",
+        "    return tokens\n",
+        "\n",
+        "preprocessed_documents = [preprocess_text(doc) for doc in documents]\n",
+        "\n",
+        "print(preprocessed_documents[0])"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "wxPeobZQNZH9",
+        "outputId": "e1765ec9-bf65-4711-d4dd-8d9eccc4e965"
+      },
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "[nltk_data] Downloading package stopwords to /root/nltk_data...\n",
+            "[nltk_data]   Package stopwords is already up-to-date!\n",
+            "[nltk_data] Downloading package punkt to /root/nltk_data...\n",
+            "[nltk_data]   Package punkt is already up-to-date!\n",
+            "[nltk_data] Downloading package wordnet to /root/nltk_data...\n",
+            "[nltk_data]   Package wordnet is already up-to-date!\n",
+            "[nltk_data] Downloading package punkt_tab to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping tokenizers/punkt_tab.zip.\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "['washington', '2016', 'even', 'policy', 'bipartisan', 'politics', 'sense', 'year', 'show', 'little', 'sign', 'ending', 'president', 'obama', 'moved', 'sanction', 'russia', 'alleged', 'interference', 'election', 'concluded', 'republican', 'long', 'called', 'similar', 'severe', 'measure', 'could', 'scarcely', 'bring', 'approve', 'house', 'speaker', 'paul', 'ryan', 'called', 'obama', 'measure', 'appropriate', 'also', 'overdue', 'prime', 'example', 'administration', 'ineffective', 'foreign', 'policy', 'left', 'america', 'weaker', 'eye', 'gop', 'leader', 'sounded', 'much', 'theme', 'urging', 'president', 'obama', 'year', 'take', 'strong', 'action', 'deter', 'russia', 'worldwide', 'aggression', 'including', 'operation', 'wrote', 'devin', 'nunes', 'chairman', 'house', 'intelligence', 'committee', 'week', 'left', 'office', 'president', 'suddenly', 'decided', 'stronger', 'measure', 'indeed', 'appearing', 'cnn', 'frequent', 'obama', 'critic', 'trent', 'frank', 'called', 'much', 'tougher', 'action', 'said', 'three', 'time', 'obama', 'finally', 'found', 'meanwhile', 'fox', 'news', 'various', 'spokesman', 'trump', 'said', 'obama', 'real', 'target', 'russian', 'man', 'poised', 'take', 'white', 'house', 'less', 'three', 'week', 'spoke', 'obama', 'trying', 'tie', 'trump', 'hand', 'box', 'meaning', 'would', 'forced', 'either', 'keep', 'sanction', 'odds', 'republican', 'want', 'tougher', 'still', 'moscow', 'throughout', '2016', 'trump', 'repeatedly', 'called', 'sanction', 'closer', 'tie', 'russia', 'including', 'cooperation', 'fight', 'isi', 'russia', 'battled', 'isi', 'syria', 'behalf', 'country', 'embattled', 'dictator', 'bashar', 'assad', 'bombing', 'besieged', 'city', 'aleppo', 'fell', 'assad', 'force', 'week', 'campaign', 'trump', 'even', 'urged', 'russia', 'find', 'missing', 'email', 'private', 'server', 'opponent', 'hillary', 'clinton', 'exchanged', 'public', 'encomium', 'russian', 'president', 'vladimir', 'putin', 'several', 'occasion', 'added', 'doubt', 'current', 'level', 'support', 'nato', 'putin', 'longtime', 'nemesis', 'also', 'suggestion', 'trump', 'extensive', 'business', 'dealing', 'various', 'russian', 'reason', 'refuse', 'release', 'tax', 'return', 'issue', 'disquieting', 'republican', 'many', 'month', 'sen', 'john', 'mccain', 'lindsay', 'graham', 'prominent', 'senior', 'member', 'armed', 'service', 'committee', 'accepted', 'assessment', '17', 'intelligence', 'agency', 'regarding', 'role', 'russia', 'hacking', 'various', 'democratic', 'committee', 'last', 'year', 'includes', 'fbi', 'cia', 'consensus', 'russian', 'goal', 'discredit', 'american', 'democracy', 'defeat', 'clinton', 'elect', 'trump', 'say', 'great', 'majority', 'senate', 'colleague', 'agree', 'mccain', 'slated', 'armed', 'service', 'hearing', 'cyberthreats', 'politicizing', 'russian', 'action', 'idea', 'helped', 'trump', 'win', 'also', 'made', 'issue', 'difficult', 'republican', 'leader', 'allowed', 'trump', 'supporter', 'push', 'back', 'intelligence', 'agency', 'say', 'entire', 'issue', 'designed', 'undermine', 'trump', 'legitimacy', 'senate', 'majority', 'leader', 'mitch', 'mcconnell', 'far', 'resisted', 'call', 'select', 'committee', 'look', 'russian', 'interference', '2016', 'campaign', 'said', 'enough', 'richard', 'burr', 'look', 'chairman', 'senate', 'intelligence', 'committee', 'typically', 'republican', 'leader', 'spokesman', 'say', 'evidence', 'actual', 'voting', 'tallying', '8', 'compromised', 'true', 'also', 'red', 'herring', 'interference', 'function', 'alleged', 'focus', 'intelligence', 'agency', 'concern', 'part', 'trump', 'shown', 'little', 'interest', 'delving', 'happened', 'cast', 'doubt', 'intelligence', 'report', 'date', 'suggested', 'one', 'really', 'know', 'also', 'suggested', 'computer', 'make', 'difficult', 'know', 'using', 'week', 'trump', 'said', 'time', 'get', 'life', 'important', 'however', 'week', 'end', 'agree', 'intelligence', 'briefing', 'subject', 'next', 'week', 'wanted', 'daily', 'intelligence', 'briefing', 'available', 'recent', 'week', 'preferring', 'given', 'men', 'chosen', 'vice', 'president', 'mike', 'penny', 'national', 'security', 'adviser', 'mike', 'flynn', 'trump', 'taking', 'occasionally', 'irony', 'controversy', 'arising', 'eleventh', 'hour', 'obama', 'presidency', 'scarcely', 'overstated', 'defines', 'dilemma', 'facing', 'outgoing', 'president', 'incoming', 'party', 'control', 'obama', 'appears', 'reluctant', 'retaliate', 'russian', 'hacking', 'election', 'fear', 'seeming', 'interfere', 'election', 'republican', 'meanwhile', 'year', 'called', 'greater', 'confrontation', 'russian', 'obama', 'usually', 'resisting', 'obama', 'join', 'nato', 'punishing', 'russian', 'economic', 'sanction', 'annexation', 'crimea', 'sanction', 'may', 'painful', 'coming', 'alongside', 'falling', 'price', 'oil', 'commodity', 'keep', 'russian', 'economy', 'afloat', 'occasion', 'despite', 'russian', 'provocation', 'surrogate', 'syria', 'elsewhere', 'obama', 'make', 'overt', 'move', 'force', 'russia', 'hand', 'includes', 'occasion', 'russia', 'believed', 'hacking', 'critical', 'computer', 'system', 'neighboring', 'ukraine', 'estonia', 'poland', 'week', 'following', 'chorus', 'confirmation', 'intelligence', 'community', 'regarding', 'russian', 'role', 'computer', 'hacking', 'political', 'campaign', 'obama', 'acted', 'imposed', 'set', 'mostly', 'diplomatic', 'action', 'sanctioning', 'russian', 'official', 'closing', 'two', 'diplomatic', 'compound', 'expelling', '35', 'russian', 'diplomat', 'may', 'damaging', 'measure', 'taken', 'covertly', 'russophobes', 'washington', 'held', 'hope', 'visible', 'portion', 'program', 'scarcely', 'amounted', 'major', 'retribution', 'putin', 'saw', 'fit', 'diminish', 'obama', 'sanction', 'declining', 'respond', 'although', 'government', 'steadfastly', 'denied', 'interference', 'election', 'putin', 'rejected', 'foreign', 'minister', 'recommended', 'package', 'response', 'even', 'sent', 'invitation', 'diplomat', 'send', 'child', 'holiday', 'party', 'moscow', 'allowed', 'putin', 'appear', 'moment', 'bigger', 'man', 'even', 'spurned', 'obama', 'kept', 'looked', 'like', 'public', 'bromance', 'trump', 'tweeted', 'great', 'move', 'delay', 'putin', 'always', 'knew', 'smart', 'moment', 'may', 'seem', 'overall', 'russia', 'question', 'amount', 'first', 'crisis', 'facing', 'trump', 'presidency', 'whether', 'forced', 'campaign', 'interference', 'issue', 'trump', 'must', 'grasp', 'nettle', 'relationship', 'mitt', 'romney', 'called', 'greatest', 'threat', 'security', 'world', 'sure', 'trump', 'need', 'dispel', 'doubt', 'ability', 'stand', 'putin', 'bullied', 'cajoled', 'way', 'center', 'stage', 'recent', 'world', 'affair', 'trump', 'also', 'seems', 'determined', 'turn', 'page', 'past', 'commitment', 'free', 'trade', 'philosophy', 'funding', 'nato', 'united', 'nation', 'twitter', 'account', 'guide', 'trump', 'show', 'little', 'concern', 'conundrum', 'others', 'perceive', 'facing', 'trump', 'shown', 'determined', 'play', 'rule', 'year', 'ago', 'many', 'confident', 'would', 'work', 'world', 'presidential', 'politics', 'find', 'whether', 'work', 'oval', 'office']\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from gensim import corpora\n",
+        "\n",
+        "dictionary = corpora.Dictionary(preprocessed_documents)\n",
+        "\n",
+        "\n",
+        "dictionary.filter_extremes(no_below=15, no_above=0.5)\n",
+        "\n",
+        "corpus = [dictionary.doc2bow(doc) for doc in preprocessed_documents]\n",
+        "\n",
+        "print(\"Vocabulary size:\", len(dictionary))\n",
+        "print(\"Sample:\", corpus[0])"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "cxs7L0emOT8j",
+        "outputId": "8cf1c477-8d88-4067-cab2-959efbb5a0f5"
+      },
+      "execution_count": 6,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Vocabulary size: 15974\n",
+            "Sample: [(0, 1), (1, 3), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 4), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 3), (16, 1), (17, 1), (18, 2), (19, 1), (20, 2), (21, 2), (22, 1), (23, 1), (24, 1), (25, 1), (26, 1), (27, 1), (28, 1), (29, 1), (30, 1), (31, 1), (32, 1), (33, 1), (34, 1), (35, 2), (36, 2), (37, 1), (38, 1), (39, 1), (40, 1), (41, 1), (42, 1), (43, 1), (44, 1), (45, 1), (46, 1), (47, 1), (48, 1), (49, 2), (50, 1), (51, 1), (52, 1), (53, 1), (54, 1), (55, 6), (56, 4), (57, 1), (58, 1), (59, 2), (60, 1), (61, 1), (62, 1), (63, 1), (64, 1), (65, 2), (66, 1), (67, 1), (68, 1), (69, 1), (70, 1), (71, 1), (72, 5), (73, 1), (74, 1), (75, 1), (76, 1), (77, 3), (78, 2), (79, 1), (80, 1), (81, 1), (82, 1), (83, 1), (84, 1), (85, 1), (86, 1), (87, 1), (88, 1), (89, 1), (90, 1), (91, 1), (92, 1), (93, 1), (94, 1), (95, 1), (96, 1), (97, 1), (98, 1), (99, 1), (100, 1), (101, 1), (102, 1), (103, 1), (104, 1), (105, 1), (106, 1), (107, 1), (108, 1), (109, 2), (110, 1), (111, 1), (112, 2), (113, 1), (114, 1), (115, 2), (116, 2), (117, 1), (118, 1), (119, 3), (120, 1), (121, 1), (122, 1), (123, 1), (124, 4), (125, 1), (126, 1), (127, 1), (128, 1), (129, 1), (130, 1), (131, 1), (132, 1), (133, 1), (134, 1), (135, 1), (136, 1), (137, 3), (138, 1), (139, 1), (140, 1), (141, 1), (142, 1), (143, 1), (144, 1), (145, 2), (146, 1), (147, 1), (148, 1), (149, 1), (150, 2), (151, 2), (152, 2), (153, 1), (154, 1), (155, 1), (156, 1), (157, 1), (158, 1), (159, 1), (160, 1), (161, 1), (162, 1), (163, 1), (164, 1), (165, 1), (166, 2), (167, 1), (168, 1), (169, 1), (170, 4), (171, 2), (172, 1), (173, 1), (174, 1), (175, 1), (176, 1), (177, 1), (178, 1), (179, 1), (180, 1), (181, 3), (182, 1), (183, 1), (184, 1), (185, 1), (186, 2), (187, 2), (188, 1), (189, 1), (190, 1), (191, 9), (192, 1), (193, 1), (194, 5), (195, 1), (196, 1), (197, 2), (198, 4), (199, 1), (200, 1), (201, 2), (202, 1), (203, 1), (204, 2), (205, 1), (206, 4), (207, 2), (208, 1), (209, 1), (210, 1), (211, 1), (212, 1), (213, 3), (214, 1), (215, 1), (216, 2), (217, 1), (218, 1), (219, 1), (220, 2), (221, 2), (222, 3), (223, 2), (224, 1), (225, 1), (226, 2), (227, 4), (228, 1), (229, 1), (230, 2), (231, 1), (232, 1), (233, 1), (234, 1), (235, 2), (236, 1), (237, 2), (238, 1), (239, 2), (240, 1), (241, 2), (242, 1), (243, 1), (244, 1), (245, 3), (246, 1), (247, 1), (248, 1), (249, 1), (250, 1), (251, 15), (252, 3), (253, 1), (254, 1), (255, 2), (256, 1), (257, 1), (258, 1), (259, 1), (260, 1), (261, 1), (262, 1), (263, 1), (264, 1), (265, 1), (266, 1), (267, 1), (268, 1), (269, 1), (270, 1), (271, 2), (272, 1), (273, 1), (274, 1), (275, 1), (276, 1), (277, 1), (278, 1), (279, 1), (280, 2), (281, 1), (282, 2), (283, 1), (284, 1), (285, 2), (286, 6), (287, 1), (288, 1), (289, 1), (290, 1), (291, 1), (292, 1), (293, 1), (294, 2), (295, 1), (296, 1), (297, 7), (298, 1), (299, 1), (300, 1), (301, 1), (302, 2), (303, 1), (304, 1), (305, 1), (306, 2), (307, 1), (308, 1), (309, 1), (310, 1), (311, 1), (312, 1), (313, 6), (314, 1), (315, 1), (316, 1), (317, 1), (318, 1), (319, 1), (320, 1), (321, 1), (322, 2), (323, 1), (324, 1), (325, 9), (326, 14), (327, 1), (328, 6), (329, 1), (330, 3), (331, 2), (332, 1), (333, 1), (334, 1), (335, 1), (336, 1), (337, 3), (338, 1), (339, 1), (340, 1), (341, 1), (342, 1), (343, 2), (344, 1), (345, 1), (346, 1), (347, 2), (348, 2), (349, 1), (350, 1), (351, 1), (352, 1), (353, 1), (354, 1), (355, 1), (356, 2), (357, 1), (358, 1), (359, 1), (360, 1), (361, 1), (362, 1), (363, 1), (364, 1), (365, 2), (366, 1), (367, 1), (368, 1), (369, 1), (370, 1), (371, 2), (372, 1), (373, 2), (374, 1), (375, 1), (376, 1), (377, 1), (378, 1), (379, 1), (380, 2), (381, 1), (382, 2), (383, 2), (384, 1), (385, 1), (386, 19), (387, 1), (388, 1), (389, 1), (390, 1), (391, 1), (392, 1), (393, 1), (394, 1), (395, 1), (396, 1), (397, 1), (398, 1), (399, 1), (400, 3), (401, 1), (402, 1), (403, 1), (404, 1), (405, 1), (406, 1), (407, 2), (408, 1), (409, 8), (410, 2), (411, 1), (412, 1), (413, 2), (414, 3), (415, 1), (416, 1)]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from gensim import corpora\n",
+        "\n",
+        "dictionary = corpora.Dictionary(preprocessed_documents)\n",
+        "\n",
+        "dictionary.filter_extremes(no_below=15, no_above=0.5)\n",
+        "\n",
+        "corpus = [dictionary.doc2bow(doc) for doc in preprocessed_documents]\n",
+        "\n",
+        "print(len(corpus))\n",
+        "print(len(dictionary))"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Efrt_9LCOt3J",
+        "outputId": "9fbbc4d6-13be-49b4-9bcf-f527fc06b50b"
+      },
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "11992\n",
+            "15974\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from gensim.models import LdaModel\n",
+        "\n",
+        "lda_model = LdaModel(\n",
+        "    corpus=corpus,\n",
+        "    num_topics=5,\n",
+        "    id2word=dictionary,\n",
+        "    passes=15\n",
+        ")"
+      ],
+      "metadata": {
+        "id": "xJcAqUADOyK0"
+      },
+      "execution_count": 8,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for topic_id in range(lda_model.num_topics):\n",
+        "    print(f\"Top terms for Topic #{topic_id}:\")\n",
+        "    top_terms = lda_model.show_topic(topic_id, topn=10)\n",
+        "    print([term[0] for term in top_terms])\n",
+        "    print()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "T8LoUkCeP97s",
+        "outputId": "65ee8b15-ef66-4934-e5a4-4f4021c69dc0"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Top terms for Topic #0:\n",
+            "['woman', 'know', 'life', 'think', 'story', 'thing', 'show', 'really', 'black', 'music']\n",
+            "\n",
+            "Top terms for Topic #1:\n",
+            "['trump', 'clinton', 'president', 'state', 'republican', 'campaign', 'election', 'obama', 'vote', 'house']\n",
+            "\n",
+            "Top terms for Topic #2:\n",
+            "['food', 'child', 'think', 'thing', 'know', 'really', 'study', 'lot', 'day', 'see']\n",
+            "\n",
+            "Top terms for Topic #3:\n",
+            "['police', 'country', 'city', 'report', 'government', 'state', 'attack', 'told', 'two', 'war']\n",
+            "\n",
+            "Top terms for Topic #4:\n",
+            "['health', 'percent', 'company', 'state', 'care', 'school', 'program', 'million', 'patient', 'drug']\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"Top Terms for Each Topic:\")\n",
+        "for idx, topic in lda_model.print_topics():\n",
+        "    print(f\"Topic {idx}:\")\n",
+        "    terms = [term.strip() for term in topic.split(\"+\")]\n",
+        "    for term in terms:\n",
+        "        weight, word = term.split(\"*\")\n",
+        "        print(f\"- {word.strip()} (weight: {weight.strip()})\")\n",
+        "    print()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "iLlOOF7JQCBZ",
+        "outputId": "8613c77e-376d-4df3-b940-8ccb09bb0a5d"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Top Terms for Each Topic:\n",
+            "Topic 0:\n",
+            "- \"woman\" (weight: 0.005)\n",
+            "- \"know\" (weight: 0.005)\n",
+            "- \"life\" (weight: 0.005)\n",
+            "- \"think\" (weight: 0.005)\n",
+            "- \"story\" (weight: 0.004)\n",
+            "- \"thing\" (weight: 0.004)\n",
+            "- \"show\" (weight: 0.004)\n",
+            "- \"really\" (weight: 0.004)\n",
+            "- \"black\" (weight: 0.004)\n",
+            "- \"music\" (weight: 0.004)\n",
+            "\n",
+            "Topic 1:\n",
+            "- \"trump\" (weight: 0.027)\n",
+            "- \"clinton\" (weight: 0.011)\n",
+            "- \"president\" (weight: 0.010)\n",
+            "- \"state\" (weight: 0.008)\n",
+            "- \"republican\" (weight: 0.007)\n",
+            "- \"campaign\" (weight: 0.007)\n",
+            "- \"election\" (weight: 0.006)\n",
+            "- \"obama\" (weight: 0.005)\n",
+            "- \"vote\" (weight: 0.005)\n",
+            "- \"house\" (weight: 0.005)\n",
+            "\n",
+            "Topic 2:\n",
+            "- \"food\" (weight: 0.005)\n",
+            "- \"child\" (weight: 0.004)\n",
+            "- \"think\" (weight: 0.004)\n",
+            "- \"thing\" (weight: 0.004)\n",
+            "- \"know\" (weight: 0.004)\n",
+            "- \"really\" (weight: 0.004)\n",
+            "- \"study\" (weight: 0.003)\n",
+            "- \"lot\" (weight: 0.003)\n",
+            "- \"day\" (weight: 0.003)\n",
+            "- \"see\" (weight: 0.003)\n",
+            "\n",
+            "Topic 3:\n",
+            "- \"police\" (weight: 0.007)\n",
+            "- \"country\" (weight: 0.006)\n",
+            "- \"city\" (weight: 0.005)\n",
+            "- \"report\" (weight: 0.005)\n",
+            "- \"government\" (weight: 0.004)\n",
+            "- \"state\" (weight: 0.004)\n",
+            "- \"attack\" (weight: 0.004)\n",
+            "- \"told\" (weight: 0.004)\n",
+            "- \"two\" (weight: 0.004)\n",
+            "- \"war\" (weight: 0.003)\n",
+            "\n",
+            "Topic 4:\n",
+            "- \"health\" (weight: 0.010)\n",
+            "- \"percent\" (weight: 0.007)\n",
+            "- \"company\" (weight: 0.007)\n",
+            "- \"state\" (weight: 0.006)\n",
+            "- \"care\" (weight: 0.005)\n",
+            "- \"school\" (weight: 0.005)\n",
+            "- \"program\" (weight: 0.004)\n",
+            "- \"million\" (weight: 0.004)\n",
+            "- \"patient\" (weight: 0.004)\n",
+            "- \"drug\" (weight: 0.004)\n",
+            "\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
